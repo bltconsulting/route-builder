@@ -1,0 +1,22 @@
+[build-system]
+requires = ["setuptools>=68", "wheel"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "route-builder"
+version = "0.1.0"
+description = "CSV-to-route generator for simple volunteer driving workflows"
+requires-python = ">=3.11"
+dependencies = ["ortools>=9.15,<10"]
+
+[project.optional-dependencies]
+dev = ["pytest>=8.0"]
+
+[project.scripts]
+route-builder = "route_builder.cli:main"
+
+[tool.setuptools.packages.find]
+where = ["src"]
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]

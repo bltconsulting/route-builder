@@ -1,0 +1,83 @@
+<!doctype html>
+<html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Volunteer route demo</title>
+<style>
+*{box-sizing:border-box}body{font-family:system-ui,-apple-system,sans-serif;margin:0;background:#f4f4f2;color:#111}main{max-width:540px;margin:auto;padding:18px}.card{background:#fff;border-radius:16px;padding:22px;box-shadow:0 2px 10px #0002}h1{font-size:1.5rem;margin:0 0 16px}.demo{background:#fff2bc;border:2px solid #7b5600;border-radius:10px;padding:12px;font-weight:650;margin-bottom:16px}p{line-height:1.45}.status{font-weight:650;margin:18px 0}.address{font-size:1.5rem;font-weight:750;overflow-wrap:anywhere;margin:12px 0 24px}button,.nav-link{width:100%;min-height:54px;padding:12px;margin:6px 0;border:0;border-radius:10px;font:700 1.1rem system-ui;cursor:pointer}.nav-link{display:block;text-align:center;text-decoration:none}select{display:block;width:100%;min-height:52px;margin:8px 0;padding:8px;border:1px solid #777;border-radius:8px;background:#fff;font:1rem system-ui}.primary{background:#122b52;color:white}.done{background:#d9efdf;color:#092e15}.secondary{background:#f0f0f0;color:#111}.apps{display:flex;gap:6px}.apps button{font-size:.95rem;padding:8px;min-height:48px}.apps .selected{outline:3px solid #122b52}.muted{color:#444;font-size:.95rem}.hidden{display:none}button:focus-visible,select:focus-visible,.nav-link:focus-visible{outline:4px solid #b75000;outline-offset:2px}
+</style></head><body><main><div class="card">
+<h1>Volunteer route</h1>
+<div class="demo">__ROUTE_NOTICE__</div>
+<div id="message" role="status"></div>
+<div id="setup"><p>Choose your navigation app:</p><div class="apps" id="apps"></div><button class="primary" id="start">START MY ROUTE</button><p class="muted">Your location is used on this device to pick the first stop. If location is unavailable, choose your first stop below.</p><label class="muted" for="first-stop">Or choose your first stop:</label><select id="first-stop"></select><button class="secondary" id="fallback">START AT SELECTED STOP</button></div>
+<div id="active" class="hidden"><div class="apps" id="active-apps"></div><div class="status" id="status"></div><div class="muted">NEXT STOP</div><div class="address" id="address"></div><a class="primary nav-link" id="navigate" href="#">NAVIGATE</a><button class="done" id="done">DONE — NEXT STOP</button><button class="secondary" id="skip">SKIP THIS STOP</button><button class="secondary" id="undo-active">UNDO</button></div>
+<div id="choice" class="hidden"><p id="choice-text"></p><button class="primary" id="revisit">REVISIT SKIPPED STOPS</button><button class="secondary" id="finish">FINISH ROUTE</button><button class="secondary" id="undo-choice">UNDO</button></div>
+<div id="finished" class="hidden"><p>Route finished.</p><button class="secondary" id="undo-finished">UNDO</button></div>
+</div></main><script>
+const stops = __ROUTE_DATA__;
+const storageKey = 'route-builder-__ROUTE_ID__';
+__ROUTE_LOGIC__
+let state = null;
+let app = 'waze';
+const byId = id => document.getElementById(id);
+function save() { try { localStorage.setItem(storageKey, JSON.stringify({state, app})); } catch (_) { byId('message').textContent = 'Progress could not be saved on this device.'; } }
+function restore() {
+  try {
+    const saved = JSON.parse(localStorage.getItem(storageKey));
+    if (RouteState.apps.includes(saved.app)) app = saved.app;
+    if (saved.state && Array.isArray(saved.state.order) && saved.state.order.length === stops.length && Array.isArray(saved.state.history)) state = saved.state;
+  } catch (_) { /* Start clean if storage is unavailable or corrupt. */ }
+}
+function choose(value) { app = value; if (state) state.app = value; save(); render(); }
+function appButtons(container) {
+  container.replaceChildren();
+  for (const [value, label] of [['waze','Waze'],['google','Google Maps'],['apple','Apple Maps']]) {
+    const button = document.createElement('button');
+    button.type = 'button'; button.textContent = label;
+    button.className = 'secondary' + (app === value ? ' selected' : '');
+    button.setAttribute('aria-pressed', app === value ? 'true' : 'false');
+    button.onclick = () => choose(value);
+    container.append(button);
+  }
+}
+function render() {
+  for (const id of ['setup','active','choice','finished']) byId(id).classList.add('hidden');
+  appButtons(byId('apps')); appButtons(byId('active-apps'));
+  const phase = state?.phase || 'setup'; byId(phase === 'primary' || phase === 'revisit' ? 'active' : phase).classList.remove('hidden');
+  if (phase === 'primary' || phase === 'revisit') {
+    const index = RouteState.current(state), stop = stops[index];
+    const remaining = phase === 'primary' ? state.order.length - state.position - 1 : state.revisit.length - state.position - 1;
+    byId('status').textContent = `${phase === 'revisit' ? 'Revisit' : 'Stop'} ${state.position + 1} of ${phase === 'primary' ? state.order.length : state.revisit.length} • ${remaining} remaining • ${state.skipped.length} skipped`;
+    byId('address').textContent = stop.address;
+    byId('navigate').href = RouteState.navigationUrl(stop, app);
+    byId('undo-active').disabled = !state.history.length;
+  } else if (phase === 'choice') {
+    byId('choice-text').textContent = `Main route complete. ${state.skipped.length} skipped stop${state.skipped.length === 1 ? '' : 's'} remaining.`;
+    byId('revisit').classList.toggle('hidden', !state.skipped.length);
+  }
+}
+function transition(action) { state = RouteState.change(state, action); save(); render(); }
+function begin(entry) { state = RouteState.start(stops, entry, app); save(); render(); }
+stops.forEach((stop, index) => {
+  const option = document.createElement('option');
+  option.value = String(index);
+  option.textContent = `${index + 1}. ${stop.address}`;
+  byId('first-stop').append(option);
+});
+byId('start').onclick = () => {
+  byId('message').textContent = 'Finding your nearest stop…';
+  if (!window.isSecureContext || !navigator.geolocation) {
+    byId('message').textContent = 'This browser cannot request location from this copy of the file. Choose a first stop below.';
+    return;
+  }
+  navigator.geolocation.getCurrentPosition(position => {
+    byId('message').textContent = '';
+    begin(RouteState.nearest(stops, position.coords.latitude, position.coords.longitude));
+  }, error => {
+    byId('message').textContent = error.code === 1
+      ? 'Location permission was denied. Check Chrome and phone location settings, or choose a first stop below.'
+      : 'Your location could not be determined. Try again or choose a first stop below.';
+  }, {timeout:10000});
+};
+byId('fallback').onclick = () => begin(Number(byId('first-stop').value));
+for (const [id, action] of [['done','done'],['skip','skip'],['undo-active','undo'],['undo-choice','undo'],['undo-finished','undo'],['revisit','revisit'],['finish','finish']]) byId(id).onclick = () => transition(action);
+restore(); render();
+</script></body></html>
