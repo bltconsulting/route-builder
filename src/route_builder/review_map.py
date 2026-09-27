@@ -31,7 +31,7 @@ def read_validation(path: str | Path) -> list[dict[str, str]]:
     return rows
 
 
-def generate_review_map(rows: list[dict[str, str]]) -> str:
+def generate_review_map(rows: list[dict[str, str]], *, title: str = "Geocode review", attribution: str = "Geocoding data © OpenStreetMap contributors.") -> str:
     """Create a portable coordinate overview with links to street maps."""
     points = defaultdict(list)
     for row in rows:
@@ -40,8 +40,8 @@ def generate_review_map(rows: list[dict[str, str]]) -> str:
         points[(float(row["latitude"]), float(row["longitude"]))].append(row)
     lats = [point[0] for point in points]
     lons = [point[1] for point in points]
-    min_lat, max_lat = min(lats), max(lats)
-    min_lon, max_lon = min(lons), max(lons)
+    min_lat, max_lat = (min(lats), max(lats)) if lats else (0, 0)
+    min_lon, max_lon = (min(lons), max(lons)) if lons else (0, 0)
     lat_span = max(max_lat - min_lat, 0.01)
     lon_span = max(max_lon - min_lon, 0.01)
     markers = []
@@ -51,8 +51,8 @@ def generate_review_map(rows: list[dict[str, str]]) -> str:
         ids = ", ".join(row["id"] for row in group)
         color = "#136b37" if all(row["status"] == "READY" for row in group) else "#b65000"
         label = html.escape(ids)
-        title = html.escape("; ".join(row["source_address"] for row in group))
-        markers.append(f'<g><title>{label}: {title}</title><circle cx="{x:.1f}" cy="{y:.1f}" r="19" fill="{color}" stroke="white" stroke-width="3"/><text x="{x:.1f}" y="{y+5:.1f}" text-anchor="middle" fill="white" font-size="12" font-weight="bold">{label}</text></g>')
+        stop_title = html.escape("; ".join(row["source_address"] for row in group))
+        markers.append(f'<g><title>{label}: {stop_title}</title><circle cx="{x:.1f}" cy="{y:.1f}" r="19" fill="{color}" stroke="white" stroke-width="3"/><text x="{x:.1f}" y="{y+5:.1f}" text-anchor="middle" fill="white" font-size="12" font-weight="bold">{label}</text></g>')
     table_rows = []
     for row in rows:
         links = "No coordinate"
@@ -64,10 +64,10 @@ def generate_review_map(rows: list[dict[str, str]]) -> str:
         fields = [row["id"], row["status"], row["source_address"], row["matched_address"], row["notes"]]
         cells = "".join(f"<td>{html.escape(value)}</td>" for value in fields)
         table_rows.append(f'<tr>{cells}<td>{links}</td></tr>')
-    return f'''<!doctype html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>Geocode review</title>
-<style>body{{font-family:system-ui,sans-serif;margin:0;color:#111;background:#f4f5f4}}main{{max-width:1200px;margin:auto;padding:20px}}h1{{margin-bottom:4px}}p{{line-height:1.5}}svg{{width:100%;height:auto;background:#eaf0ed;border:1px solid #aaa;border-radius:8px}}table{{width:100%;border-collapse:collapse;background:white}}th,td{{text-align:left;vertical-align:top;padding:9px;border-bottom:1px solid #ccc}}th{{background:#dde6e0}}tr:nth-child(even){{background:#f6f7f6}}.scroll{{overflow-x:auto}}.ready{{color:#136b37}}.review{{color:#b65000}}a{{color:#064f9e}}</style></head><body><main><h1>Geocode review</h1><p>This diagram shows relative coordinates, not streets or driving routes. Green = READY; orange = REVIEW. Open a pin in OpenStreetMap or Google Maps to check the actual building and driveway. Multiple IDs in one circle share the exact same geocoder point.</p>
+    return f'''<!doctype html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>{html.escape(title)}</title>
+<style>body{{font-family:system-ui,sans-serif;margin:0;color:#111;background:#f4f5f4}}main{{max-width:1200px;margin:auto;padding:20px}}h1{{margin-bottom:4px}}p{{line-height:1.5}}svg{{width:100%;height:auto;background:#eaf0ed;border:1px solid #aaa;border-radius:8px}}table{{width:100%;border-collapse:collapse;background:white}}th,td{{text-align:left;vertical-align:top;padding:9px;border-bottom:1px solid #ccc}}tr:nth-child(even){{background:#f6f7f6}}a{{color:#064f9e}}</style></head><body><main><h1>{html.escape(title)}</h1><p>This diagram shows relative coordinates, not streets or driving routes. Green = READY; orange = REVIEW. Open a pin in OpenStreetMap or Google Maps to check the actual building and driveway. Multiple IDs in one circle share the exact same geocoder point.</p>
 <svg viewBox="0 0 900 600" role="img" aria-label="Relative location of geocoded stops"><text x="15" y="24" font-size="15">North ↑</text>{''.join(markers)}</svg>
-<p>Geocoding data © OpenStreetMap contributors. Source addresses are preserved. No point is approved for volunteer use by this diagram.</p>
+<p>{html.escape(attribution)} Source addresses are preserved. No point is approved for volunteer use by this diagram.</p>
 <div class="scroll"><table><thead><tr><th>ID</th><th>Status</th><th>Source address</th><th>Matched address</th><th>Reason</th><th>Inspect pin</th></tr></thead><tbody>{''.join(table_rows)}</tbody></table></div></main></body></html>'''
 
 
@@ -76,4 +76,25 @@ def write_review_map(validation_path: str | Path, output_path: str | Path) -> Pa
     target = Path(output_path)
     target.parent.mkdir(parents=True, exist_ok=True)
     target.write_text(generate_review_map(rows), encoding="utf-8")
+    return target
+
+
+def write_census_review_map(comparison_path: str | Path, output_path: str | Path) -> Path:
+    """Show the Census points actually used by the optimized volunteer route."""
+    with Path(comparison_path).open(newline="", encoding="utf-8") as stream:
+        comparison = list(csv.DictReader(stream))
+    if not comparison:
+        raise ValueError("Census comparison report has no stops")
+    rows = []
+    for item in comparison:
+        matched = item["census_result"] == "MATCH"
+        status = "READY" if matched and not item["notes"] and item.get("nominatim_status") == "READY" else "REVIEW" if matched else "FAILED"
+        notes = "; ".join(part for part in (item["notes"], f"Nominatim: {item.get('nominatim_status') or 'no match'}" if item.get("nominatim_status") != "READY" else "") if part)
+        rows.append({"id": item["id"], "status": status, "source_address": item["source_address"],
+                     "matched_address": item["census_matched_address"], "latitude": item["census_latitude"],
+                     "longitude": item["census_longitude"], "notes": notes})
+    target = Path(output_path)
+    target.parent.mkdir(parents=True, exist_ok=True)
+    target.write_text(generate_review_map(rows, title="Census destination pin review",
+                                          attribution="Census coordinates are estimated along address ranges."), encoding="utf-8")
     return target

@@ -1,4 +1,4 @@
-"""Local Milestone 1 route generator."""
+"""Local route builder commands."""
 
 import argparse
 import logging
@@ -9,6 +9,7 @@ from .geocode import NominatimGeocoder, validate_csv
 from .review_map import write_review_map
 from .census import CensusGeocoder, compare_csv
 from .routing import build_optimized_route
+from .prepare import prepare_route, NOMINATIM_ENDPOINT, OSRM_ENDPOINT, USER_AGENT
 
 
 def main() -> None:
@@ -37,6 +38,14 @@ def main() -> None:
     optimize.add_argument("--census-comparison", required=True)
     optimize.add_argument("--matrix-endpoint", required=True, help="HTTPS OSRM-compatible routing endpoint")
     optimize.add_argument("--output", default="build/optimized")
+    prepare = sub.add_parser("prepare", help="Review addresses, then create one named volunteer route")
+    prepare.add_argument("input_csv")
+    prepare.add_argument("--name", required=True, help="Route name; becomes a folder and HTML filename")
+    prepare.add_argument("--output", default="build/routes")
+    prepare.add_argument("--reviewed", action="store_true", help="I inspected the reports and destination pins; build the route")
+    prepare.add_argument("--geocoder-endpoint", default=NOMINATIM_ENDPOINT)
+    prepare.add_argument("--matrix-endpoint", default=OSRM_ENDPOINT)
+    prepare.add_argument("--user-agent", default=USER_AGENT)
     args = parser.parse_args()
     logging.basicConfig(level=logging.INFO, format="%(levelname)s: %(message)s")
     if args.command == "build":
@@ -81,6 +90,17 @@ def main() -> None:
             build_optimized_route(args.input_csv, args.census_comparison, args.output, args.matrix_endpoint)
         except (OSError, ValueError, ImportError) as exc:
             parser.exit(2, f"Routing error: {exc}\n")
+    elif args.command == "prepare":
+        try:
+            target = prepare_route(args.input_csv, args.name, args.output, reviewed=args.reviewed,
+                                   geocoder_endpoint=args.geocoder_endpoint,
+                                   matrix_endpoint=args.matrix_endpoint, user_agent=args.user_agent)
+        except (OSError, ValueError, KeyError, ImportError) as exc:
+            parser.exit(2, f"Prepare error: {exc}\n")
+        if args.reviewed:
+            logging.info("Volunteer file: %s", target)
+        else:
+            logging.warning("Review %s/validation.csv, census_comparison.csv, and geocode_review.html; inspect every destination pin. Then rerun with --reviewed to build the route.", target)
 
 if __name__ == "__main__":
     main()

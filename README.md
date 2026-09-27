@@ -5,9 +5,27 @@ Local prototype for turning a CSV of addresses into a volunteer-friendly driving
 The project is intentionally small. See:
 - `AGENTS.md` for implementation constraints.
 - `docs/PROJECT_SPEC.md` for the complete MVP specification.
+- `docs/WINDOWS_ORGANIZER.md` for Windows installation and organizer instructions.
+- `sample_data/organizer_template.csv` for the required `id,address` format.
 - `sample_data/addresses.csv` for the initial user-supplied input (currently malformed CSV).
 - `sample_data/route_addresses` for the same addresses with valid CSV quoting.
 - `sample_data/demo_coordinates.json` for deterministic placeholder coordinates.
+
+## Organizer command
+
+Create one CSV per route with the exact `id,address` header. Quote addresses containing commas; start from `sample_data/organizer_template.csv`. After installing the project (see the Windows guide or the Python setup below), run:
+
+```bash
+.venv/bin/python -m route_builder.cli prepare my_addresses.csv --name "North Route" --output build/routes
+```
+
+The first run creates `build/routes/North-Route/validation.csv`, `census_comparison.csv`, and `geocode_review.html`. Inspect every match and pin. Correct the CSV and rerun if needed. Once reviewed, run the same command with `--reviewed`:
+
+```bash
+.venv/bin/python -m route_builder.cli prepare my_addresses.csv --name "North Route" --output build/routes --reviewed
+```
+
+This writes `build/routes/North-Route/North-Route.html` and `route.csv`. The HTML is the only file volunteers need. The builder refuses to overwrite an existing named volunteer file; use a new name for a revised route. Public geocoding and routing endpoints are intended for small prototype runs, and their responses are cached locally.
 
 ## Milestone 1 demo
 
