@@ -25,10 +25,10 @@ class RoutingOutputTests(unittest.TestCase):
                 writer.writerows([{"id": "a", "census_matched_address": "1 FIRST ST"}, {"id": "b", "census_matched_address": "2 SECOND ST"}])
             with patch("route_builder.routing.build_stops_from_census", return_value=stops), patch("route_builder.routing.OsrmMatrixAdapter") as adapter, patch("route_builder.routing.solve_closed_loop", return_value=[1, 0]):
                 adapter.return_value.table.return_value = matrix
-                order = build_optimized_route(root / "input.csv", comparison, root / "out", "https://example.test")
+                order = build_optimized_route(root / "input.csv", comparison, root / "out", "https://example.test", "North-Route.html")
             with (root / "out" / "route.csv").open(newline="", encoding="utf-8") as stream:
                 rows = list(csv.DictReader(stream))
-            html = (root / "out" / "route.html").read_text(encoding="utf-8")
+            html = (root / "out" / "North-Route.html").read_text(encoding="utf-8")
             self.assertEqual(order, ["b", "a"])
             self.assertEqual([(r["id"], r["next_id"]) for r in rows], [("b", "a"), ("a", "b")])
             self.assertEqual(rows[0]["leg_duration_s"], "15")

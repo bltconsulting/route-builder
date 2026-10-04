@@ -1,0 +1,4 @@
+interface:
+  display_name: "Contact table to CSV"
+  short_description: "Parse and validate canvass PDF contact lists"
+  default_prompt: "Use $contact-table-to-csv to inspect this contact-table PDF and deliver a validated CSV."

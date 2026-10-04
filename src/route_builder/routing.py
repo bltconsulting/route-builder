@@ -11,7 +11,9 @@ from .optimize import solve_closed_loop
 LOG = logging.getLogger(__name__)
 
 
-def build_optimized_route(csv_path: str | Path, comparison_path: str | Path, output_dir: str | Path, matrix_endpoint: str) -> list[str]:
+def build_optimized_route(csv_path: str | Path, comparison_path: str | Path, output_dir: str | Path, matrix_endpoint: str, html_filename: str = "route.html") -> list[str]:
+    if Path(html_filename).name != html_filename or not html_filename.endswith(".html"):
+        raise ValueError("HTML filename must be a simple .html filename")
     stops = build_stops_from_census(csv_path, comparison_path)
     with Path(comparison_path).open(newline="", encoding="utf-8") as stream:
         matched_addresses = {row["id"]: row["census_matched_address"] for row in csv.DictReader(stream)}
@@ -35,7 +37,7 @@ def build_optimized_route(csv_path: str | Path, comparison_path: str | Path, out
     ordered_stops = [stops[index] for index in order]
     notice = "TEST ROUTE: road order is optimized, but Census coordinates are estimated. Verify each destination before driving or sharing."
     template_dir = Path(__file__).resolve().parents[2] / "templates"
-    (output / "route.html").write_text(generate_html(ordered_stops, template_dir, notice), encoding="utf-8")
+    (output / html_filename).write_text(generate_html(ordered_stops, template_dir, notice), encoding="utf-8")
     total_seconds = sum(matrix.durations[order[i]][order[(i + 1) % len(order)]] for i in range(len(order)))
     total_meters = sum(matrix.distances[order[i]][order[(i + 1) % len(order)]] for i in range(len(order)))
     LOG.info("Closed loop: %d stops, %.1f km, %.1f minutes of driving; returns from %s to %s", len(order), total_meters / 1000, total_seconds / 60, stops[order[-1]].id, stops[order[0]].id)

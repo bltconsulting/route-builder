@@ -2,12 +2,53 @@
 
 Local prototype for turning a CSV of addresses into a volunteer-friendly driving route.
 
+## Contact-table PDF parser
+
+The separate local `contact-table-csv` command converts supported canvass PDFs
+to a contact CSV for organizer review. Install the optional PDF reader with
+`.venv/bin/python -m pip install -e '.[contacts]'`, then run:
+
+```bash
+.venv/bin/python -m route_builder.contacts.cli /path/to/YS930.pdf \
+  --output /path/to/YS930_contacts.csv \
+  --diagnostics /path/to/YS930_contacts_validation.json
+```
+
+Omit `--output` to inspect and validate without writing a contact file.
+The CSV has `Name,Address,Phone,Turf,Precinct,Town,Street` in that order. YS930
+populates the three group-header fields and leaves Turf blank; YS925 populates
+Turf and leaves the three group-header fields blank. Source row order, shared
+addresses, unit text, leading zeroes, and missing phone fields are preserved.
+The command uses embedded PDF text and positional rows; it does not contact an
+external service. Scanned PDFs and other layouts require inspection and a new
+adapter. See [the parser handoff](docs/CONTACT_TABLE_PARSER.md) for verified
+layouts, checks, and limitations. Keep real PDFs, contact CSVs, and extracted
+text out of Git.
+
 The project is intentionally small. See:
 - `AGENTS.md` for implementation constraints.
 - `docs/PROJECT_SPEC.md` for the complete MVP specification.
+- `docs/WINDOWS_ORGANIZER.md` for Windows installation and organizer instructions.
+- `sample_data/organizer_template.csv` for the required `id,address` format.
 - `sample_data/addresses.csv` for the initial user-supplied input (currently malformed CSV).
 - `sample_data/route_addresses` for the same addresses with valid CSV quoting.
 - `sample_data/demo_coordinates.json` for deterministic placeholder coordinates.
+
+## Organizer command
+
+Create one CSV per route with the exact `id,address` header. Quote addresses containing commas; start from `sample_data/organizer_template.csv`. After installing the project (see the Windows guide or the Python setup below), run:
+
+```bash
+.venv/bin/python -m route_builder.cli prepare my_addresses.csv --name "North Route" --output build/routes
+```
+
+The first run creates `build/routes/North-Route/validation.csv`, `census_comparison.csv`, and `geocode_review.html`. Inspect every match and pin. Correct the CSV and rerun if needed. Once reviewed, run the same command with `--reviewed`:
+
+```bash
+.venv/bin/python -m route_builder.cli prepare my_addresses.csv --name "North Route" --output build/routes --reviewed
+```
+
+This writes `build/routes/North-Route/North-Route.html` and `route.csv`. The HTML is the only file volunteers need. The builder refuses to overwrite an existing named volunteer file; use a new name for a revised route. Public geocoding and routing endpoints are intended for small prototype runs, and their responses are cached locally.
 
 ## Milestone 1 demo
 
