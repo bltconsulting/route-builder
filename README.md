@@ -2,6 +2,29 @@
 
 Local prototype for turning a CSV of addresses into a volunteer-friendly driving route.
 
+## Contact-table PDF parser
+
+The separate local `contact-table-csv` command converts supported canvass PDFs
+to a contact CSV for organizer review. Install the optional PDF reader with
+`.venv/bin/python -m pip install -e '.[contacts]'`, then run:
+
+```bash
+.venv/bin/python -m route_builder.contacts.cli /path/to/YS930.pdf \
+  --output /path/to/YS930_contacts.csv \
+  --diagnostics /path/to/YS930_contacts_validation.json
+```
+
+Omit `--output` to inspect and validate without writing a contact file.
+The CSV has `Name,Address,Phone,Turf,Precinct,Town,Street` in that order. YS930
+populates the three group-header fields and leaves Turf blank; YS925 populates
+Turf and leaves the three group-header fields blank. Source row order, shared
+addresses, unit text, leading zeroes, and missing phone fields are preserved.
+The command uses embedded PDF text and positional rows; it does not contact an
+external service. Scanned PDFs and other layouts require inspection and a new
+adapter. See [the parser handoff](docs/CONTACT_TABLE_PARSER.md) for verified
+layouts, checks, and limitations. Keep real PDFs, contact CSVs, and extracted
+text out of Git.
+
 The project is intentionally small. See:
 - `AGENTS.md` for implementation constraints.
 - `docs/PROJECT_SPEC.md` for the complete MVP specification.
