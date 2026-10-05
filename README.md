@@ -179,6 +179,22 @@ not a live navigation map. Orange dashed connectors show stop sequence, not
 the driving path, and red-ringed pins need address review. Use a matching road
 file for lists outside Genesee County.
 
+To preview the existing self-contained mobile navigation widget for every
+planned route, run:
+
+```bash
+.venv/bin/python -m route_builder.cli volunteer-pages build/seven_routes/routes.csv \
+  --output build/seven_routes/volunteer_pages
+```
+
+This writes `Route-01-REVIEW.html`, `Route-02-REVIEW.html`, and so on. Each file
+contains just that route's fixed loop, chooses a nearby entry stop on the
+volunteer's device when location is available, hands one destination at a time
+to Waze, Google Maps, or Apple Maps, and stores progress in that browser. These
+are review copies with a visible estimated-pin notice; inspect the destination
+pins and workload balance before distributing them. The command refuses to
+overwrite existing pages.
+
 To hand out a route, copy only the reviewed `build/grand_blanc/optimized/route.html` file to each volunteer. Their chosen navigation app and progress are saved in that browser on that device. The file does not sync progress across devices, and regenerating a route with changed stops can start a new progress record. The `build/` directory is ignored by Git, so a fresh checkout must run the commands again.
 
 The parser rejects `sample_data/addresses.csv` because its addresses contain unquoted commas. It reports the CSV line to fix. Both original files remain untouched.

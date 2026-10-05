@@ -59,7 +59,7 @@ def build_stops_from_census(csv_path: str | Path, comparison_path: str | Path) -
     return stops
 
 
-def generate_html(stops: list[Stop], template_dir: str | Path, notice: str = "DEMO ONLY: these coordinates are placeholders. Do not use this route for deliveries.") -> str:
+def generate_html(stops: list[Stop], template_dir: str | Path, notice: str = "DEMO ONLY: these coordinates are placeholders. Do not use this route for deliveries.", title: str = "Volunteer route") -> str:
     if not stops:
         raise ValueError("Cannot generate an empty route")
     root = Path(template_dir)
@@ -68,4 +68,6 @@ def generate_html(stops: list[Stop], template_dir: str | Path, notice: str = "DE
     route_id = hashlib.sha256(payload.encode("utf-8")).hexdigest()[:16]
     html = (root / "volunteer_route.html").read_text(encoding="utf-8")
     logic = (root / "route_state.js").read_text(encoding="utf-8")
-    return html.replace("__ROUTE_DATA__", payload).replace("__ROUTE_ID__", route_id).replace("__ROUTE_LOGIC__", logic).replace("__ROUTE_NOTICE__", html_module.escape(notice))
+    return (html.replace("__ROUTE_DATA__", payload).replace("__ROUTE_ID__", route_id)
+            .replace("__ROUTE_LOGIC__", logic).replace("__ROUTE_NOTICE__", html_module.escape(notice))
+            .replace("__ROUTE_TITLE__", html_module.escape(title)))
