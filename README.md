@@ -135,6 +135,29 @@ python3.12 -m venv .venv
 
 The routing command writes `route.csv`, a self-contained `route.html`, and a reusable driving-matrix cache. The CSV includes each leg's modeled driving time and distance; its final `next_id` returns to the first stop. The volunteer page rotates this fixed loop to the chosen starting stop. OSRM's public demo server is suitable only for a small prototype request; the cached matrix avoids repeat requests. This test route uses estimated Census coordinates, so inspect its destination pins before driving or sharing it. Stops 13 and 14 share an address and remain separate records in this test; duplicate collapsing is not yet implemented.
 
+## Multiple routes from one address list
+
+Start with an `id,address` CSV, run the existing validation and Census comparison
+steps, and review every destination pin. Then request the number of routes:
+
+```bash
+.venv/bin/python -m route_builder.cli plan-routes my_addresses.csv \
+  --census-comparison build/reviewed/census_comparison.csv \
+  --routes 7 --output build/seven_routes
+```
+
+`build/seven_routes/routes.csv` has one row per input stop, sorted by
+`route_number` then `stop_number`. It retains the original `id` and source
+address, matched address, coordinates, the next stop in each closed loop, and
+modeled driving time/distance for that leg. Geographic grouping balances stop
+counts to within one stop per route; each group then gets its own road-driving
+matrix and optimized closed loop. The algorithm balances counts, not volunteer
+work hours or driving time. Route numbers are arbitrary labels, and each loop's
+Stop 1 is a fixed rotation rather than a chosen depot. Review the groups and
+pins before sharing, especially because Census coordinates are estimates. This
+command exports a planning CSV; it does not yet create separate volunteer HTML
+files for the groups. It refuses to overwrite an existing `routes.csv`.
+
 To hand out a route, copy only the reviewed `build/grand_blanc/optimized/route.html` file to each volunteer. Their chosen navigation app and progress are saved in that browser on that device. The file does not sync progress across devices, and regenerating a route with changed stops can start a new progress record. The `build/` directory is ignored by Git, so a fresh checkout must run the commands again.
 
 The parser rejects `sample_data/addresses.csv` because its addresses contain unquoted commas. It reports the CSV line to fix. Both original files remain untouched.

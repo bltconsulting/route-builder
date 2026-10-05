@@ -9,6 +9,7 @@ from .geocode import NominatimGeocoder, validate_csv
 from .review_map import write_review_map
 from .census import CensusGeocoder, compare_csv
 from .routing import build_optimized_route
+from .multi_route import build_multi_route_csv
 from .prepare import prepare_route, NOMINATIM_ENDPOINT, OSRM_ENDPOINT, USER_AGENT
 
 
@@ -38,6 +39,12 @@ def main() -> None:
     optimize.add_argument("--census-comparison", required=True)
     optimize.add_argument("--matrix-endpoint", required=True, help="HTTPS OSRM-compatible routing endpoint")
     optimize.add_argument("--output", default="build/optimized")
+    multiple = sub.add_parser("plan-routes", help="Group reviewed stops and order each closed route")
+    multiple.add_argument("input_csv")
+    multiple.add_argument("--census-comparison", required=True)
+    multiple.add_argument("--routes", required=True, type=int, help="Number of balanced routes")
+    multiple.add_argument("--matrix-endpoint", default=OSRM_ENDPOINT)
+    multiple.add_argument("--output", default="build/multi_routes")
     prepare = sub.add_parser("prepare", help="Review addresses, then create one named volunteer route")
     prepare.add_argument("input_csv")
     prepare.add_argument("--name", required=True, help="Route name; becomes a folder and HTML filename")
@@ -90,6 +97,13 @@ def main() -> None:
             build_optimized_route(args.input_csv, args.census_comparison, args.output, args.matrix_endpoint)
         except (OSError, ValueError, ImportError) as exc:
             parser.exit(2, f"Routing error: {exc}\n")
+    elif args.command == "plan-routes":
+        try:
+            target = build_multi_route_csv(args.input_csv, args.census_comparison,
+                                           args.routes, args.output, args.matrix_endpoint)
+        except (OSError, ValueError, ImportError, KeyError) as exc:
+            parser.exit(2, f"Multi-route error: {exc}\n")
+        logging.info("Wrote %s", target)
     elif args.command == "prepare":
         try:
             target = prepare_route(args.input_csv, args.name, args.output, reviewed=args.reviewed,
