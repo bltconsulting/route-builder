@@ -2,10 +2,13 @@
 
 import csv
 import logging
+import re
+from collections import Counter, defaultdict
 from math import cos, radians
 from pathlib import Path
 
 from .generate import build_stops_from_census
+from .geocode import street_key
 from .matrix import OsrmMatrixAdapter
 from .optimize import solve_closed_loop
 from .route import Stop
@@ -13,8 +16,42 @@ from .route import Stop
 LOG = logging.getLogger(__name__)
 FIELDS = (
     "route_number", "stop_number", "id", "source_address", "matched_address",
-    "latitude", "longitude", "next_id", "leg_distance_m", "leg_duration_s", "road_snap_m",
+    "latitude", "longitude", "review_note", "next_id", "leg_distance_m", "leg_duration_s", "road_snap_m",
 )
+
+
+def match_notes(stops: list[Stop], matched: dict[str, str]) -> dict[str, str]:
+    """Flag address differences and coincident points without removing stops."""
+    source_counts = Counter(stop.source_address.casefold().strip() for stop in stops)
+    coordinate_ids: dict[tuple[float, float], list[str]] = defaultdict(list)
+    for stop in stops:
+        coordinate_ids[(stop.latitude, stop.longitude)].append(stop.id)
+    notes = {}
+    for stop in stops:
+        source_parts = [part.strip() for part in stop.source_address.split(",")]
+        match_parts = [part.strip() for part in matched[stop.id].split(",")]
+        source_line = re.sub(r"\s+(?:apt|unit|#)\s*\S+$", "", source_parts[0], flags=re.I)
+        source_street = re.sub(r"^\d+\s+", "", source_line)
+        matched_street = re.sub(r"^\d+\s+", "", match_parts[0])
+        warnings = []
+        source_number = re.match(r"^\d+", source_line)
+        matched_number = re.match(r"^\d+", match_parts[0])
+        if not source_number or not matched_number or source_number.group() != matched_number.group():
+            warnings.append("House number differs from Census match")
+        if street_key(source_street) != street_key(matched_street):
+            warnings.append("Street differs from Census match")
+        if len(source_parts) > 1 and len(match_parts) > 1:
+            source_city = re.sub(r"\s+MI$", "", source_parts[1], flags=re.I)
+            if source_city.casefold() != match_parts[1].casefold():
+                warnings.append("City differs from Census match")
+        if source_counts[stop.source_address.casefold().strip()] > 1:
+            warnings.append("Duplicate source address")
+        other_ids = [stop_id for stop_id in coordinate_ids[(stop.latitude, stop.longitude)]
+                     if stop_id != stop.id]
+        if other_ids and source_counts[stop.source_address.casefold().strip()] == 1:
+            warnings.append("Estimated coordinate shared with ID " + ", ".join(other_ids))
+        notes[stop.id] = "; ".join(warnings)
+    return notes
 
 
 def balanced_geo_groups(stops: list[Stop], route_count: int) -> list[list[int]]:
@@ -68,11 +105,15 @@ def build_multi_route_csv(input_csv: str | Path, comparison_csv: str | Path,
     groups = balanced_geo_groups(stops, route_count)
     with Path(comparison_csv).open(newline="", encoding="utf-8") as stream:
         matched = {row["id"]: row["census_matched_address"] for row in csv.DictReader(stream)}
+    review_notes = match_notes(stops, matched)
     output = Path(output_dir)
     target = output / "routes.csv"
-    if target.exists():
-        raise ValueError(f"{target} already exists; choose a new output folder to preserve it")
+    summary_target = output / "route_summary.csv"
+    for existing in (target, summary_target):
+        if existing.exists():
+            raise ValueError(f"{existing} already exists; choose a new output folder to preserve it")
     rows = []
+    summary = []
     for route_number, indices in enumerate(groups, 1):
         group = [stops[i] for i in indices]
         matrix = OsrmMatrixAdapter(matrix_endpoint, output / f"route_{route_number:02d}_matrix_cache.json").table(group)
@@ -87,7 +128,8 @@ def build_multi_route_csv(input_csv: str | Path, comparison_csv: str | Path,
                 "route_number": route_number, "stop_number": position + 1,
                 "id": stop.id, "source_address": stop.source_address,
                 "matched_address": matched[stop.id], "latitude": stop.latitude,
-                "longitude": stop.longitude, "next_id": group[next_index].id,
+                "longitude": stop.longitude, "review_note": review_notes[stop.id],
+                "next_id": group[next_index].id,
                 "leg_distance_m": round(matrix.distances[local_index][next_index]),
                 "leg_duration_s": round(matrix.durations[local_index][next_index]),
                 "road_snap_m": round(matrix.snap_distances[local_index], 1),
@@ -96,10 +138,28 @@ def build_multi_route_csv(input_csv: str | Path, comparison_csv: str | Path,
                  route_number, len(group),
                  sum(matrix.durations[order[i]][order[(i + 1) % len(order)]]
                      for i in range(len(order))) / 60)
+        route_rows = rows[-len(group):]
+        summary.append({
+            "route_number": route_number, "stop_count": len(group),
+            "loop_distance_km": round(sum(int(row["leg_distance_m"]) for row in route_rows) / 1000, 1),
+            "loop_driving_minutes": round(sum(int(row["leg_duration_s"]) for row in route_rows) / 60, 1),
+            "review_count": sum(bool(row["review_note"]) for row in route_rows),
+        })
     output.mkdir(parents=True, exist_ok=True)
     with target.open("w", newline="", encoding="utf-8-sig") as stream:
         writer = csv.DictWriter(stream, fieldnames=FIELDS)
         writer.writeheader()
         writer.writerows(rows)
+    with summary_target.open("w", newline="", encoding="utf-8-sig") as stream:
+        writer = csv.DictWriter(stream, fieldnames=list(summary[0]))
+        writer.writeheader()
+        writer.writerows(summary)
+    minutes = [row["loop_driving_minutes"] for row in summary]
+    if max(minutes) > 2 * min(minutes):
+        LOG.warning("Driving workloads vary substantially (%.1f to %.1f minutes); review route balance",
+                    min(minutes), max(minutes))
     LOG.warning("Review route groups and all destination pins before sharing; Census coordinates are estimated")
+    if any(review_notes.values()):
+        LOG.warning("%d stops have address or duplicate-coordinate review notes in routes.csv",
+                    sum(bool(note) for note in review_notes.values()))
     return target

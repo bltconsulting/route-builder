@@ -149,7 +149,10 @@ steps, and review every destination pin. Then request the number of routes:
 `build/seven_routes/routes.csv` has one row per input stop, sorted by
 `route_number` then `stop_number`. It retains the original `id` and source
 address, matched address, coordinates, the next stop in each closed loop, and
-modeled driving time/distance for that leg. Geographic grouping balances stop
+modeled driving time/distance for that leg. Its `review_note` flags street-name
+differences from Census, duplicate source addresses, and coincident estimated
+coordinates. `route_summary.csv` reports stops, modeled loop distance and
+driving time, and flagged-stop count for each group. Geographic grouping balances stop
 counts to within one stop per route; each group then gets its own road-driving
 matrix and optimized closed loop. The algorithm balances counts, not volunteer
 work hours or driving time. Route numbers are arbitrary labels, and each loop's
