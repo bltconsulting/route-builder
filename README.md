@@ -161,6 +161,24 @@ pins before sharing, especially because Census coordinates are estimates. This
 command exports a planning CSV; it does not yet create separate volunteer HTML
 files for the groups. It refuses to overwrite an existing `routes.csv`.
 
+For offline printable route sheets with roads, numbered pins, and a stop list,
+download the appropriate county road ZIP from the [U.S. Census Bureau's
+TIGER/Line Roads archive](https://www2.census.gov/geo/tiger/TIGER2025/ROADS/).
+For Genesee County, Michigan, the file is `tl_2025_26049_roads.zip`. Then run:
+
+```bash
+.venv/bin/python -m route_builder.cli print-maps build/seven_routes/routes.csv \
+  --roads-zip build/map_data/tl_2025_26049_roads.zip \
+  --output build/seven_routes/printable_route_maps.html
+```
+
+The output is one self-contained HTML file with one landscape page per route.
+Open it in a browser and use Print. The road background and pins work offline;
+no tiles are loaded when the file opens. Roads are 2025 Census centerlines,
+not a live navigation map. Orange dashed connectors show stop sequence, not
+the driving path, and red-ringed pins need address review. Use a matching road
+file for lists outside Genesee County.
+
 To hand out a route, copy only the reviewed `build/grand_blanc/optimized/route.html` file to each volunteer. Their chosen navigation app and progress are saved in that browser on that device. The file does not sync progress across devices, and regenerating a route with changed stops can start a new progress record. The `build/` directory is ignored by Git, so a fresh checkout must run the commands again.
 
 The parser rejects `sample_data/addresses.csv` because its addresses contain unquoted commas. It reports the CSV line to fix. Both original files remain untouched.
