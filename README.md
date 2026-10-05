@@ -6,7 +6,18 @@ Local prototype for turning a CSV of addresses into a volunteer-friendly driving
 
 The separate local `contact-table-csv` command converts supported canvass PDFs
 to a contact CSV for organizer review. Install the optional PDF reader with
-`.venv/bin/python -m pip install -e '.[contacts]'`, then run:
+`.venv/bin/python -m pip install -e '.[contacts]'`. For the usual case, run the
+one-argument command from the project folder:
+
+```bash
+./parse-contact-pdf YS930.pdf
+```
+
+The command looks for a bare filename in the current folder, WSL Downloads,
+then the matching Windows user's Downloads. You can also give a full PDF path.
+It writes `YS930_contacts.csv` and `YS930_contacts_validation.json` beside the
+PDF and refuses to overwrite either existing output. Replace `YS930.pdf` with
+the new filename. For an inspection-only run or custom output paths, use:
 
 ```bash
 .venv/bin/python -m route_builder.contacts.cli /path/to/YS930.pdf \

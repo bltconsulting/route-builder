@@ -8,6 +8,7 @@ import pytest
 from route_builder.contacts.adapters import detect_layout, parse_contacts
 from route_builder.contacts.cli import main
 from route_builder.contacts.pdf import ExtractedPDF, TextLine
+from route_builder.contacts.quick import main as quick_main
 from route_builder.contacts.schema import CSV_FIELDS
 from route_builder.contacts.validation import validate
 
@@ -116,3 +117,21 @@ def test_schema_starts_with_original_columns_and_csv_quotes_names(tmp_path: Path
     assert path.read_bytes().startswith(b"\xef\xbb\xbf")
     with path.open(encoding="utf-8-sig", newline="") as stream:
         assert list(csv.DictReader(stream))[0]["Name"] == "Rivera, Alex"
+
+
+def test_one_argument_command_names_outputs_and_protects_existing_file(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    pdf = tmp_path / "New List.pdf"
+    pdf.touch()
+    calls: list[list[str]] = []
+    monkeypatch.setattr("route_builder.contacts.quick.convert", lambda args: calls.append(args) or 0)
+    assert quick_main([str(pdf)]) == 0
+    assert calls == [[
+        str(pdf), "--output", str(tmp_path / "New List_contacts.csv"),
+        "--diagnostics", str(tmp_path / "New List_contacts_validation.json"),
+    ]]
+    (tmp_path / "New List_contacts.csv").touch()
+    with pytest.raises(SystemExit):
+        quick_main([str(pdf)])
+    assert len(calls) == 1
