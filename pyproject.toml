@@ -12,10 +12,12 @@ dependencies = ["ortools>=9.15,<10"]
 [project.optional-dependencies]
 dev = ["pytest>=8.0"]
 contacts = ["pymupdf>=1.24,<2"]
+maps = ["pymupdf>=1.24,<2"]
 
 [project.scripts]
 route-builder = "route_builder.cli:main"
 contact-table-csv = "route_builder.contacts.cli:main"
+parse-contact-pdf = "route_builder.contacts.quick:main"
 
 [tool.setuptools.packages.find]
 where = ["src"]

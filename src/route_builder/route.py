@@ -10,6 +10,7 @@ class Stop:
     source_address: str
     latitude: float
     longitude: float
+    possible_actual_address: str = ""
 
 
 def distance_km(a_lat: float, a_lon: float, b_lat: float, b_lon: float) -> float:

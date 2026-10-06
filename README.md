@@ -6,7 +6,18 @@ Local prototype for turning a CSV of addresses into a volunteer-friendly driving
 
 The separate local `contact-table-csv` command converts supported canvass PDFs
 to a contact CSV for organizer review. Install the optional PDF reader with
-`.venv/bin/python -m pip install -e '.[contacts]'`, then run:
+`.venv/bin/python -m pip install -e '.[contacts]'`. For the usual case, run the
+one-argument command from the project folder:
+
+```bash
+./parse-contact-pdf YS930.pdf
+```
+
+The command looks for a bare filename in the current folder, WSL Downloads,
+then the matching Windows user's Downloads. You can also give a full PDF path.
+It writes `YS930_contacts.csv` and `YS930_contacts_validation.json` beside the
+PDF and refuses to overwrite either existing output. Replace `YS930.pdf` with
+the new filename. For an inspection-only run or custom output paths, use:
 
 ```bash
 .venv/bin/python -m route_builder.contacts.cli /path/to/YS930.pdf \
@@ -124,6 +135,66 @@ python3.12 -m venv .venv
 
 The routing command writes `route.csv`, a self-contained `route.html`, and a reusable driving-matrix cache. The CSV includes each leg's modeled driving time and distance; its final `next_id` returns to the first stop. The volunteer page rotates this fixed loop to the chosen starting stop. OSRM's public demo server is suitable only for a small prototype request; the cached matrix avoids repeat requests. This test route uses estimated Census coordinates, so inspect its destination pins before driving or sharing it. Stops 13 and 14 share an address and remain separate records in this test; duplicate collapsing is not yet implemented.
 
+## Multiple routes from one address list
+
+Start with an `id,address` CSV, run the existing validation and Census comparison
+steps, and review every destination pin. Then request the number of routes:
+
+```bash
+.venv/bin/python -m route_builder.cli plan-routes my_addresses.csv \
+  --census-comparison build/reviewed/census_comparison.csv \
+  --routes 7 --output build/seven_routes
+```
+
+`build/seven_routes/routes.csv` has one row per input stop, sorted by
+`route_number` then `stop_number`. It retains the original `id` and source
+address, matched address, coordinates, the next stop in each closed loop, and
+modeled driving time/distance for that leg. Its `review_note` flags street-name
+differences from Census, duplicate source addresses, and coincident estimated
+coordinates. `route_summary.csv` reports stops, modeled loop distance and
+driving time, and flagged-stop count for each group. Geographic grouping balances stop
+counts to within one stop per route; each group then gets its own road-driving
+matrix and optimized closed loop. The algorithm balances counts, not volunteer
+work hours or driving time. Route numbers are arbitrary labels, and each loop's
+Stop 1 is a fixed rotation rather than a chosen depot. Review the groups and
+pins before sharing, especially because Census coordinates are estimates. This
+command exports a planning CSV; it does not yet create separate volunteer HTML
+files for the groups. It refuses to overwrite an existing `routes.csv`.
+
+For offline printable route sheets with roads, numbered pins, and a stop list,
+download the appropriate county road ZIP from the [U.S. Census Bureau's
+TIGER/Line Roads archive](https://www2.census.gov/geo/tiger/TIGER2025/ROADS/).
+For Genesee County, Michigan, the file is `tl_2025_26049_roads.zip`. Then run:
+
+```bash
+.venv/bin/python -m route_builder.cli print-maps build/seven_routes/routes.csv \
+  --roads-zip build/map_data/tl_2025_26049_roads.zip \
+  --output build/seven_routes/printable_route_maps.html
+```
+
+The output is one self-contained HTML file with one landscape page per route.
+Open it in a browser and use Print. The road background and pins work offline;
+no tiles are loaded when the file opens. Roads are 2025 Census centerlines,
+not a live navigation map. Orange dashed connectors show stop sequence, not
+the driving path, and red-ringed pins need address review. Use a matching road
+file for lists outside Genesee County.
+
+To preview the existing self-contained mobile navigation widget for every
+planned route, run:
+
+```bash
+.venv/bin/python -m route_builder.cli volunteer-pages build/seven_routes/routes.csv \
+  --output build/seven_routes/volunteer_pages
+```
+
+This writes `Route-01-REVIEW.html`, `Route-02-REVIEW.html`, and so on. Each file
+contains just that route's fixed loop, chooses a nearby entry stop on the
+volunteer's device when location is available, hands one destination at a time
+to Waze, Google Maps, or Apple Maps, and stores progress in that browser. These
+are review copies with a visible estimated-pin notice; inspect the destination
+pins and workload balance before distributing them. The command refuses to
+overwrite existing pages.
+
 To hand out a route, copy only the reviewed `build/grand_blanc/optimized/route.html` file to each volunteer. Their chosen navigation app and progress are saved in that browser on that device. The file does not sync progress across devices, and regenerating a route with changed stops can start a new progress record. The `build/` directory is ignored by Git, so a fresh checkout must run the commands again.
 
 The parser rejects `sample_data/addresses.csv` because its addresses contain unquoted commas. It reports the CSV line to fix. Both original files remain untouched.
@@ -136,3 +207,18 @@ node --test tests/test_route_state.cjs
 ```
 
 OR-Tools is the routing dependency. Node is only used to test the JavaScript state transitions.
+# Route overview PDFs
+
+Given a reviewed `routes.csv` and a local county TIGER/Line roads ZIP, generate a
+master PDF (one page per route) plus an individual PDF for each route:
+
+```bash
+route-builder route-pdfs path/to/routes.csv --roads-zip path/to/county_roads.zip --output build/route_packets
+route-builder volunteer-pages path/to/routes.csv --output build/route_packets
+```
+
+Install the optional PDF dependency with `pip install '.[maps]'`. The paired
+`Route-XX-Overview.pdf` and `Route-XX-REVIEW.html` files share the planned stop
+order. Address discrepancies display the Census rewrite as a possible actual
+address, while the original address remains visible. PDF maps use offline road
+centerlines and estimated pins; the dashed sequence is not a driving path.
