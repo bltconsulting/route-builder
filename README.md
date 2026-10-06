@@ -207,3 +207,18 @@ node --test tests/test_route_state.cjs
 ```
 
 OR-Tools is the routing dependency. Node is only used to test the JavaScript state transitions.
+# Route overview PDFs
+
+Given a reviewed `routes.csv` and a local county TIGER/Line roads ZIP, generate a
+master PDF (one page per route) plus an individual PDF for each route:
+
+```bash
+route-builder route-pdfs path/to/routes.csv --roads-zip path/to/county_roads.zip --output build/route_packets
+route-builder volunteer-pages path/to/routes.csv --output build/route_packets
+```
+
+Install the optional PDF dependency with `pip install '.[maps]'`. The paired
+`Route-XX-Overview.pdf` and `Route-XX-REVIEW.html` files share the planned stop
+order. Address discrepancies display the Census rewrite as a possible actual
+address, while the original address remains visible. PDF maps use offline road
+centerlines and estimated pins; the dashed sequence is not a driving path.

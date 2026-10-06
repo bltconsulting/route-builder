@@ -6,6 +6,7 @@ from pathlib import Path
 from .generate import generate_html
 from .printable_maps import read_routes
 from .route import Stop
+from .address_review import possible_actual_address
 
 
 def write_volunteer_pages(routes_csv: str | Path, output_dir: str | Path) -> list[Path]:
@@ -28,7 +29,8 @@ def write_volunteer_pages(routes_csv: str | Path, output_dir: str | Path) -> lis
                 raise ValueError(f"Stop {row['id']} has invalid coordinates")
             if not row["source_address"].strip():
                 raise ValueError(f"Stop {row['id']} has no address")
-            stops.append(Stop(row["id"], row["source_address"], latitude, longitude))
+            stops.append(Stop(row["id"], row["source_address"], latitude, longitude,
+                              possible_actual_address(row)))
         target = folder / f"Route-{number:02d}-REVIEW.html"
         notice = (f"Route {number} review copy. Destination pins use estimated Census coordinates. "
                   "Confirm pins and route assignments before sharing.")

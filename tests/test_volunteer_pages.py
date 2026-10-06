@@ -14,12 +14,13 @@ def test_one_widget_per_closed_route_with_distinct_saved_progress(tmp_path: Path
     with routes.open("w", newline="", encoding="utf-8-sig") as stream:
         writer = csv.DictWriter(stream, fieldnames=[
             "route_number", "stop_number", "id", "source_address",
-            "latitude", "longitude", "review_note", "next_id",
+            "latitude", "longitude", "review_note", "matched_address", "next_id",
         ])
         writer.writeheader()
         writer.writerows([
             dict(route_number=1, stop_number=1, id="a", source_address="1 First St",
-                 latitude=42.0, longitude=-83.0, review_note="", next_id="b"),
+                 latitude=42.0, longitude=-83.0, review_note="Street differs from Census match",
+                 matched_address="1 FIRST AVE", next_id="b"),
             dict(route_number=1, stop_number=2, id="b", source_address="2 Second St",
                  latitude=42.1, longitude=-83.1, review_note="", next_id="a"),
             dict(route_number=2, stop_number=1, id="c", source_address="3 Third St",
@@ -34,6 +35,8 @@ def test_one_widget_per_closed_route_with_distinct_saved_progress(tmp_path: Path
     assert '"id": "c"' not in first
     assert "<h1>Route 1</h1>" in first and "<h1>Route 2</h1>" in second
     assert "START MY ROUTE" in first and "REVISIT SKIPPED STOPS" in first
+    assert '"possible_actual_address": "1 FIRST AVE"' in first
+    assert "Possible actual address:" in first
     assert "<script src=" not in first and "<link rel=" not in first
     assert re.search(r"route-builder-[a-f0-9]{16}", first).group() != re.search(
         r"route-builder-[a-f0-9]{16}", second).group()

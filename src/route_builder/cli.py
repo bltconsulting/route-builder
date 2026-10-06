@@ -11,6 +11,7 @@ from .census import CensusGeocoder, compare_csv
 from .routing import build_optimized_route
 from .multi_route import build_multi_route_csv
 from .printable_maps import write_printable_maps
+from .route_pdfs import write_route_pdfs
 from .volunteer_pages import write_volunteer_pages
 from .prepare import prepare_route, NOMINATIM_ENDPOINT, OSRM_ENDPOINT, USER_AGENT
 
@@ -51,6 +52,10 @@ def main() -> None:
     maps.add_argument("routes_csv", help="routes.csv from plan-routes")
     maps.add_argument("--roads-zip", required=True, help="County TIGER/Line roads ZIP")
     maps.add_argument("--output", default="build/printable_route_maps.html")
+    pdfs = sub.add_parser("route-pdfs", help="Create a master PDF and one PDF overview per route")
+    pdfs.add_argument("routes_csv", help="routes.csv from plan-routes")
+    pdfs.add_argument("--roads-zip", required=True, help="County TIGER/Line roads ZIP")
+    pdfs.add_argument("--output", default="build/route_pdfs")
     pages = sub.add_parser("volunteer-pages", help="Create one navigation widget per planned route")
     pages.add_argument("routes_csv", help="routes.csv from plan-routes")
     pages.add_argument("--output", default="build/volunteer_pages")
@@ -125,6 +130,12 @@ def main() -> None:
         except (OSError, ValueError, KeyError) as exc:
             parser.exit(2, f"Volunteer page error: {exc}\n")
         logging.info("Wrote %d volunteer review pages in %s", len(targets), args.output)
+    elif args.command == "route-pdfs":
+        try:
+            targets = write_route_pdfs(args.routes_csv, args.roads_zip, args.output)
+        except (OSError, ValueError, ImportError, KeyError) as exc:
+            parser.exit(2, f"PDF error: {exc}\n")
+        logging.info("Wrote %d PDFs in %s", len(targets), args.output)
     elif args.command == "prepare":
         try:
             target = prepare_route(args.input_csv, args.name, args.output, reviewed=args.reviewed,

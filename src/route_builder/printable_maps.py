@@ -9,6 +9,8 @@ from dataclasses import dataclass
 from pathlib import Path
 from zipfile import ZipFile
 
+from .address_review import possible_actual_address
+
 
 @dataclass(frozen=True)
 class Road:
@@ -167,7 +169,7 @@ def route_svg(stops: list[dict[str, str]], roads: list[Road]) -> str:
             markers.append(f'<line x1="{x:.1f}" y1="{y:.1f}" x2="{new_x:.1f}" y2="{new_y:.1f}" stroke="#27486a" stroke-width="2"/>')
             x, y = new_x, new_y
         border, border_width = ("#c22", 4) if stop["review_note"] else ("white", 2)
-        label = html.escape(f"Stop {stop['stop_number']} · ID {stop['id']} · {stop['source_address']}")
+        label = html.escape(f"Stop {stop['stop_number']} · {stop['source_address']}")
         markers.append(f'<g><title>{label}</title><circle cx="{x:.1f}" cy="{y:.1f}" r="14" fill="#164b8a" stroke="{border}" stroke-width="{border_width}"/><text x="{x:.1f}" y="{y + 4:.1f}" fill="white" font-size="12" font-weight="700" text-anchor="middle">{html.escape(stop["stop_number"])}</text></g>')
     scale_km = next((size for size in (10, 5, 2, 1, 0.5, 0.2, 0.1)
                      if size / span_x * width < 180), 0.1)
@@ -187,7 +189,9 @@ def generate_printable_maps(groups: dict[int, list[dict[str, str]]], roads: list
         items = []
         for stop in stops:
             note = f' <span class="warning">⚠ {html.escape(stop["review_note"])}</span>' if stop["review_note"] else ""
-            items.append(f'<li><strong>{html.escape(stop["stop_number"])}.</strong> {html.escape(stop["source_address"])} <small>ID {html.escape(stop["id"])}</small>{note}</li>')
+            possible = possible_actual_address(stop)
+            hint = f' <span class="warning">Possible actual address: {html.escape(possible)}</span>' if possible else ""
+            items.append(f'<li><strong>{html.escape(stop["stop_number"])}.</strong> {html.escape(stop["source_address"])}{note}{hint}</li>')
         sections.append(f'''<section id="route-{route}"><header><h2>Route {route}</h2><p>{len(stops)} stops · {flagged} address review notes · planning draft</p></header>
 <div class="sheet"><div class="map">{route_svg(stops, roads)}</div><ol>{''.join(items)}</ol></div>
 <footer>Roads: U.S. Census Bureau 2025 TIGER/Line, Genesee County. Pins: estimated Census Geocoder coordinates. Dashed lines show stop order, not the driving path. Verify flagged addresses and pins before use.</footer></section>''')

@@ -8,7 +8,7 @@
 <div class="demo">__ROUTE_NOTICE__</div>
 <div id="message" role="status"></div>
 <div id="setup"><p>Choose your navigation app:</p><div class="apps" id="apps"></div><button class="primary" id="start">START MY ROUTE</button><p class="muted">Your location is used on this device to pick the first stop. If location is unavailable, choose your first stop below.</p><label class="muted" for="first-stop">Or choose your first stop:</label><select id="first-stop"></select><button class="secondary" id="fallback">START AT SELECTED STOP</button></div>
-<div id="active" class="hidden"><div class="apps" id="active-apps"></div><div class="status" id="status"></div><div class="muted">NEXT STOP</div><div class="address" id="address"></div><a class="primary nav-link" id="navigate" href="#">NAVIGATE</a><button class="done" id="done">DONE — NEXT STOP</button><button class="secondary" id="skip">SKIP THIS STOP</button><button class="secondary" id="undo-active">UNDO</button></div>
+<div id="active" class="hidden"><div class="apps" id="active-apps"></div><div class="status" id="status"></div><div class="muted">NEXT STOP</div><div class="address" id="address"></div><p class="muted hidden" id="possible-address"></p><a class="primary nav-link" id="navigate" href="#">NAVIGATE</a><button class="done" id="done">DONE — NEXT STOP</button><button class="secondary" id="skip">SKIP THIS STOP</button><button class="secondary" id="undo-active">UNDO</button></div>
 <div id="choice" class="hidden"><p id="choice-text"></p><button class="primary" id="revisit">REVISIT SKIPPED STOPS</button><button class="secondary" id="finish">FINISH ROUTE</button><button class="secondary" id="undo-choice">UNDO</button></div>
 <div id="finished" class="hidden"><p>Route finished.</p><button class="secondary" id="undo-finished">UNDO</button></div>
 </div></main><script>
@@ -47,6 +47,8 @@ function render() {
     const remaining = phase === 'primary' ? state.order.length - state.position - 1 : state.revisit.length - state.position - 1;
     byId('status').textContent = `${phase === 'revisit' ? 'Revisit' : 'Stop'} ${state.position + 1} of ${phase === 'primary' ? state.order.length : state.revisit.length} • ${remaining} remaining • ${state.skipped.length} skipped`;
     byId('address').textContent = stop.address;
+    byId('possible-address').textContent = stop.possible_actual_address ? `Possible actual address: ${stop.possible_actual_address}` : '';
+    byId('possible-address').classList.toggle('hidden', !stop.possible_actual_address);
     byId('navigate').href = RouteState.navigationUrl(stop, app);
     byId('undo-active').disabled = !state.history.length;
   } else if (phase === 'choice') {

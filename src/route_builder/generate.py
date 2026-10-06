@@ -63,7 +63,9 @@ def generate_html(stops: list[Stop], template_dir: str | Path, notice: str = "DE
     if not stops:
         raise ValueError("Cannot generate an empty route")
     root = Path(template_dir)
-    payload = json.dumps([{"id": s.id, "address": s.source_address, "lat": s.latitude, "lon": s.longitude} for s in stops], ensure_ascii=False)
+    payload = json.dumps([{"id": s.id, "address": s.source_address, "lat": s.latitude, "lon": s.longitude,
+                           **({"possible_actual_address": s.possible_actual_address} if s.possible_actual_address else {})}
+                          for s in stops], ensure_ascii=False)
     payload = payload.replace("<", "\\u003c").replace("&", "\\u0026")
     route_id = hashlib.sha256(payload.encode("utf-8")).hexdigest()[:16]
     html = (root / "volunteer_route.html").read_text(encoding="utf-8")
