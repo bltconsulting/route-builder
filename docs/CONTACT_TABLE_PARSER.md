@@ -50,6 +50,23 @@ CSV's original `Name,Address,Phone,Turf` values in row order. Per-turf people
 counts are 22, 17, 17, 24, 22, 20, 19, 10, and 1. Six source phone fields are
 blank. The three new metadata columns remain blank for this format.
 
+## Verified YSRequests four-part layout (October 8, 2026)
+
+`YSRequests1005_1008.pdf` has three pages: two script/cover pages and one
+contact page. Embedded text is available, so OCR is unnecessary. The gray
+headers have four middle-dot-separated parts: complete precinct label, house
+number, street, and town. The contact row below each header prints a full
+address, name, and detail line. This adapter checks that the row's house number
+and street match the gray header; it does not assemble or rewrite addresses.
+Turf is not printed as contact metadata and remains blank.
+
+The actual PDF prints `People: 13` and `Doors: 13`. The adapter extracted 13
+people and 13 headers, with no missing phones, shared addresses, assembled
+addresses, or unresolved row-pairing ambiguities. Twelve records have the
+complete `Genesee - Burton City - 003` precinct label and one has
+`Genesee - Grand Blanc City - 001`. All 13 rows and header transitions were
+reviewed against the rendered contact page.
+
 ## Extension rule
 
 Inspect embedded text, rendered representative pages, page breaks, repeated

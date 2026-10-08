@@ -41,6 +41,47 @@ def synthetic_ys930() -> ExtractedPDF:
     ))
 
 
+def synthetic_ysrequests() -> ExtractedPDF:
+    return ExtractedPDF(
+        (
+            (line(1, 18, 20, "People: 2"), line(1, 18, 30, "Doors: 2")),
+            (line(2, 18, 20, "Canvass script"),),
+            (
+                line(3, 23, 20, "Example - City - 003 · 2051 · Amy St · Sampletown"),
+                *contact(3, 40, "2051 Amy St", "Rivera, Alex", "(810) 555-0101 40 F"),
+                line(3, 23, 70, "Example - City - 004 · 2062 · Morrish St · Sampletown"),
+                *contact(3, 90, "2062 Morrish St", "Taylor, Jo", "55 M"),
+            ),
+        ),
+        ("People: 2\nDoors: 2", "Canvass script", ""),
+    )
+
+
+def test_ysrequests_four_part_headers_and_blank_phone() -> None:
+    document = synthetic_ysrequests()
+    assert detect_layout(document) == "ysrequests"
+    parsed = parse_contacts(document, "ysrequests")
+    report = validate(document, "ysrequests", parsed)
+    assert [r.address for r in parsed.records] == ["2051 Amy St", "2062 Morrish St"]
+    assert [r.precinct for r in parsed.records] == ["Example - City - 003", "Example - City - 004"]
+    assert [r.town for r in parsed.records] == ["Sampletown", "Sampletown"]
+    assert [r.street for r in parsed.records] == ["Amy St", "Morrish St"]
+    assert [r.phone for r in parsed.records] == ["(810) 555-0101", ""]
+    assert [r.turf for r in parsed.records] == ["", ""]
+    assert report["printed_people"] == report["extracted_people"] == 2
+
+
+def test_ysrequests_rejects_house_number_conflict() -> None:
+    document = synthetic_ysrequests()
+    pages = list(document.pages)
+    pages[2] = tuple(
+        line(item.page, item.x, item.y, "2052 Amy St") if item.text == "2051 Amy St" else item
+        for item in pages[2]
+    )
+    with pytest.raises(ValueError, match="house-number header"):
+        parse_contacts(ExtractedPDF(tuple(pages), document.page_text), "ysrequests")
+
+
 def test_ys930_carries_header_keeps_shared_people_and_assembles_house_only() -> None:
     document = synthetic_ys930()
     assert detect_layout(document) == "ys930"

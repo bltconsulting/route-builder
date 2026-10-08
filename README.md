@@ -27,8 +27,8 @@ the new filename. For an inspection-only run or custom output paths, use:
 
 Omit `--output` to inspect and validate without writing a contact file.
 The CSV has `Name,Address,Phone,Turf,Precinct,Town,Street` in that order. YS930
-populates the three group-header fields and leaves Turf blank; YS925 populates
-Turf and leaves the three group-header fields blank. Source row order, shared
+and the four-part YSRequests layout populate the three group-header fields and
+leave Turf blank; YS925 populates Turf and leaves those fields blank. Source row order, shared
 addresses, unit text, leading zeroes, and missing phone fields are preserved.
 The command uses embedded PDF text and positional rows; it does not contact an
 external service. Scanned PDFs and other layouts require inspection and a new
