@@ -10,8 +10,8 @@ const RouteState = (() => {
     };
     return stops.reduce((best, s, i) => score(s) < score(stops[best]) ? i : best, 0);
   }
-  function start(stops, entry, app) {
-    const order = stops.map((_, i) => (i + entry) % stops.length);
+  function start(stops, entry, app, reverse = false) {
+    const order = stops.map((_, i) => (entry + (reverse ? stops.length - i : i)) % stops.length);
     return {phase: 'primary', order, position: 0, done: [], skipped: [], revisit: [], app, history: []};
   }
   function snapshot(state) {

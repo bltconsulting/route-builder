@@ -11,6 +11,18 @@ test('nearest entry rotates the canonical loop', () => {
   assert.deepEqual(RouteState.start(stops, entry, 'waze').order, [2, 0, 1]);
 });
 
+test('reverse choice follows the same closed loop from the selected first stop', () => {
+  const five = Array.from({length: 5}, (_, i) => ({lat: 42 + i / 10, lon: -83}));
+  const forward = RouteState.start(five, 2, 'google');
+  const reverse = RouteState.start(five, 2, 'google', true);
+  assert.deepEqual(forward.order, [2, 3, 4, 0, 1]);
+  assert.deepEqual(reverse.order, [2, 1, 0, 4, 3]);
+  assert.equal(RouteState.current(reverse), 2);
+  const resumed = JSON.parse(JSON.stringify(reverse));
+  assert.deepEqual(resumed.order, reverse.order);
+  assert.equal(RouteState.current(RouteState.change(resumed, 'done')), 1);
+});
+
 test('navigation destination changes with the current stop', () => {
   let state = RouteState.start(stops, 0, 'waze');
   const first = RouteState.navigationUrl(stops[RouteState.current(state)], 'waze');

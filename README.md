@@ -36,7 +36,7 @@ PYTHONPATH=src python3 -m route_builder.cli build sample_data/route_addresses \
   --fixture sample_data/demo_coordinates.json --output build
 ```
 
-Open `build/route.html` on a phone or desktop browser. The HTML is self-contained and stores progress in browser localStorage. It asks for device location to choose the closest stop in the supplied order; if location is unavailable, the volunteer can choose any first stop from the list. The location is not stored. The navigation choice and Done, Skip, Undo, and skipped-stop revisit progress persist on that device.
+Open `build/route.html` on a phone or desktop browser. The HTML is self-contained and stores progress in browser localStorage. Before starting, the volunteer can turn on REVERSE ROUTE to take the same fixed loop in the opposite direction from the chosen first stop. It asks for device location to choose the closest stop in the supplied order; if location is unavailable, the volunteer can choose any first stop from the list. The location is not stored. The route direction, navigation choice, and Done, Skip, Undo, and skipped-stop revisit progress persist on that device.
 
 **The fixture coordinates are fabricated. Navigation links are functional but lead to those placeholders. Do not distribute this file for real deliveries.** The CSV order is treated as the canonical loop for this demo.
 
