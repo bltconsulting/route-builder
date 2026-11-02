@@ -16,7 +16,7 @@ def main(argv: list[str] | None = None) -> int:
     parser.add_argument("pdf", type=Path)
     parser.add_argument("--output", type=Path, help="Write CSV here; omitted for inspection only")
     parser.add_argument("--diagnostics", type=Path, help="Write non-contact validation JSON separately")
-    parser.add_argument("--layout", choices=("auto", "ys930", "ys925", "ysrequests"), default="auto")
+    parser.add_argument("--layout", choices=("auto", "ys930", "ys925", "ysrequests", "ysparity"), default="auto")
     args = parser.parse_args(argv)
     document = extract_embedded_text(args.pdf)
     layout = detect_layout(document) if args.layout == "auto" else args.layout

@@ -15,6 +15,10 @@ YS930_HEADER = re.compile(r"^(.+?\s-\s\d{3})\s*·\s*(.+?)\s*·\s*(.+?)$")
 YS_REQUESTS_HEADER = re.compile(
     r"^(.+?\s-\s\d{3})\s*·\s*(\d+[A-Za-z]?)\s*·\s*(.+?)\s*·\s*(.+?)$"
 )
+YS_PARITY_HEADER = re.compile(
+    r"^(.+?)\s*·\s*(.+?\s-\s\d{3})\s*·\s*(.+?)\s*·\s*(Odd|Even)$"
+)
+GROUP_HEADERS = {"ys930": YS930_HEADER, "ysrequests": YS_REQUESTS_HEADER, "ysparity": YS_PARITY_HEADER}
 
 
 @dataclass(frozen=True)
@@ -31,6 +35,8 @@ def detect_layout(document: ExtractedPDF) -> str:
         return "ys925"
     if any(YS_REQUESTS_HEADER.fullmatch(line.text) for page in document.pages for line in page):
         return "ysrequests"
+    if any(YS_PARITY_HEADER.fullmatch(line.text) for page in document.pages for line in page):
+        return "ysparity"
     if any(YS930_HEADER.match(line.text) for page in document.pages for line in page):
         return "ys930"
     raise ValueError("Unsupported layout; inspect representative pages before adding an adapter")
@@ -67,30 +73,36 @@ def _contact_on_line(lines: tuple[TextLine, ...], address: TextLine) -> tuple[st
 
 
 def parse_contacts(document: ExtractedPDF, layout: str) -> ParsedContacts:
-    if layout not in {"ys925", "ys930", "ysrequests"}:
+    if layout not in {"ys925", *GROUP_HEADERS}:
         raise ValueError(f"Unsupported adapter: {layout}")
     records = []
     page_counts: Counter[int] = Counter()
     header_count = assembled = 0
     carried_pages = []
-    precinct = town = street = turf = house_number = ""
+    precinct = town = street = turf = house_number = parity = ""
     for page_number, lines in enumerate(document.pages, 1):
         if layout == "ys925" and page_number == 1:
             continue  # Summary table is not a contact page or a turf heading.
         has_name_column = any(280 <= item.x < 450 and "," in item.text for item in lines)
         first_address = next((line.y for line in lines if _address_line(line)), None)
-        if first_address is not None and layout in {"ys930", "ysrequests"} and precinct:
-            pattern = YS930_HEADER if layout == "ys930" else YS_REQUESTS_HEADER
+        if first_address is not None and layout in GROUP_HEADERS and precinct:
+            pattern = GROUP_HEADERS[layout]
             first_header = next((line.y for line in lines if pattern.fullmatch(line.text)), None)
             if first_header is None or first_address < first_header:
                 carried_pages.append(page_number)
         for line in lines:
-            if layout in {"ys930", "ysrequests"}:
-                pattern = YS930_HEADER if layout == "ys930" else YS_REQUESTS_HEADER
+            if layout in GROUP_HEADERS:
+                pattern = GROUP_HEADERS[layout]
                 header = pattern.fullmatch(line.text)
                 if header and 15 <= line.x <= 40:
                     if layout == "ysrequests":
                         precinct, house_number, street, town = (part.strip() for part in header.groups())
+                    elif layout == "ysparity":
+                        county, precinct, street, parity = (part.strip() for part in header.groups())
+                        parts = precinct.split(" - ")
+                        if len(parts) != 3 or parts[0] != county:
+                            raise ValueError(f"Page {page_number}: county/precinct header mismatch")
+                        town = parts[1]
                     else:
                         precinct, town, street = (part.strip() for part in header.groups())
                     header_count += 1
@@ -104,14 +116,16 @@ def parse_contacts(document: ExtractedPDF, layout: str) -> ParsedContacts:
                 continue
             if layout == "ys925" and not has_name_column:
                 continue  # Repeated canvass script pages contain numbered questions.
-            if layout in {"ys930", "ysrequests"} and not precinct:
+            if layout in GROUP_HEADERS and not precinct:
                 continue  # Cover/script pages precede the first gray group header.
             if layout == "ys925" and not turf:
                 continue  # Cover/script pages precede the first turf packet heading.
-            if layout in {"ys930", "ysrequests"} and not all((precinct, town, street)):
+            if layout in GROUP_HEADERS and not all((precinct, town, street)):
                 raise ValueError(f"Page {page_number}: contact before a complete group header")
             if layout == "ysrequests" and not house_number:
                 raise ValueError(f"Page {page_number}: contact before a numbered group header")
+            if layout == "ysparity" and not parity:
+                raise ValueError(f"Page {page_number}: contact before a parity group header")
             if layout == "ys925" and not turf:
                 raise ValueError(f"Page {page_number}: contact before a turf heading")
             name, phone = _contact_on_line(lines, line)
@@ -124,7 +138,13 @@ def parse_contacts(document: ExtractedPDF, layout: str) -> ParsedContacts:
                     )
                 if HOUSE_ONLY.fullmatch(line.text):
                     raise ValueError(f"Page {page_number}: expected a full printed address")
-            address, was_assembled = _address(line.text, street if layout in {"ys930", "ysrequests"} else "")
+            if layout == "ysparity":
+                number = re.match(r"^\d+", line.text)
+                if HOUSE_ONLY.fullmatch(line.text) or number is None:
+                    raise ValueError(f"Page {page_number}: expected a full printed address")
+                if (int(number.group()) % 2 == 1) != (parity == "Odd"):
+                    raise ValueError(f"Page {page_number}: address conflicts with {parity} header: {line.text!r}")
+            address, was_assembled = _address(line.text, street if layout in GROUP_HEADERS else "")
             assembled += was_assembled
             records.append(ContactRecord(name, address, phone, turf, precinct, town, street))
             page_counts[page_number] += 1
