@@ -20,6 +20,8 @@ class GenerationTests(unittest.TestCase):
         html = generate_html([Stop("01", "</script><script>alert(1)</script>", 42, -83)], ROOT / "templates")
         self.assertIn("START MY ROUTE", html)
         self.assertIn("START AT SELECTED STOP", html)
+        self.assertIn("REVERSE ROUTE: OFF", html)
+        self.assertIn("reverseOnStart", html)
         self.assertIn("Location permission was denied", html)
         self.assertIn("localStorage", html)
         self.assertIn("REVISIT SKIPPED STOPS", html)

@@ -26,9 +26,11 @@ the new filename. For an inspection-only run or custom output paths, use:
 ```
 
 Omit `--output` to inspect and validate without writing a contact file.
-The CSV has `Name,Address,Phone,Turf,Precinct,Town,Street` in that order. YS930
-populates the three group-header fields and leaves Turf blank; YS925 populates
-Turf and leaves the three group-header fields blank. Source row order, shared
+The CSV has `Name,Address,Phone,Turf,Precinct,Town,Street` in that order. YS930,
+the four-part YSRequests layout, and the county/precinct/street/parity layout
+populate the three group-header fields and leave Turf blank. For the parity
+layout, Town is the jurisdiction printed inside the precinct label (such as
+`Burton City`). YS925 populates Turf and leaves those fields blank. Source row order, shared
 addresses, unit text, leading zeroes, and missing phone fields are preserved.
 The command uses embedded PDF text and positional rows; it does not contact an
 external service. Scanned PDFs and other layouts require inspection and a new
@@ -70,7 +72,7 @@ PYTHONPATH=src python3 -m route_builder.cli build sample_data/route_addresses \
   --fixture sample_data/demo_coordinates.json --output build
 ```
 
-Open `build/route.html` on a phone or desktop browser. The HTML is self-contained and stores progress in browser localStorage. It asks for device location to choose the closest stop in the supplied order; if location is unavailable, the volunteer can choose any first stop from the list. The location is not stored. The navigation choice and Done, Skip, Undo, and skipped-stop revisit progress persist on that device.
+Open `build/route.html` on a phone or desktop browser. The HTML is self-contained and stores progress in browser localStorage. Before starting, the volunteer can turn on REVERSE ROUTE to take the same fixed loop in the opposite direction from the chosen first stop. It asks for device location to choose the closest stop in the supplied order; if location is unavailable, the volunteer can choose any first stop from the list. The location is not stored. The route direction, navigation choice, and Done, Skip, Undo, and skipped-stop revisit progress persist on that device.
 
 **The fixture coordinates are fabricated. Navigation links are functional but lead to those placeholders. Do not distribute this file for real deliveries.** The CSV order is treated as the canonical loop for this demo.
 

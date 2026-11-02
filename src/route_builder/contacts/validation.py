@@ -9,7 +9,7 @@ from .pdf import ExtractedPDF
 
 def expected_people(document: ExtractedPDF, layout: str) -> int | None:
     cover = document.page_text[0]
-    if layout == "ys930":
+    if layout in {"ys930", "ysrequests", "ysparity"}:
         match = re.search(r"\bPeople:\s*(\d+)\b", cover)
         return int(match.group(1)) if match else None
     counts = re.findall(r"\bTurf\s+\d{2}\s*\n\s*(\d+)\s*\n\s*\d+\b", cover)
@@ -22,10 +22,10 @@ def validate(document: ExtractedPDF, layout: str, parsed: ParsedContacts) -> dic
         raise ValueError("Printed people total was not found; manual count validation required")
     if len(parsed.records) != expected:
         raise ValueError(f"Extracted {len(parsed.records)} people; printed people total is {expected}")
-    if layout == "ys930" and parsed.header_count == 0:
+    if layout in {"ys930", "ysrequests", "ysparity"} and parsed.header_count == 0:
         raise ValueError("No gray group headers were parsed")
-    if layout == "ys930" and any(record.turf for record in parsed.records):
-        raise ValueError("YS930 has no verified turf metadata")
+    if layout in {"ys930", "ysrequests", "ysparity"} and any(record.turf for record in parsed.records):
+        raise ValueError("This layout has no verified turf metadata")
     if layout == "ys925" and any(not record.turf for record in parsed.records):
         raise ValueError("A YS925 contact has no turf")
     addresses = Counter(record.address for record in parsed.records)

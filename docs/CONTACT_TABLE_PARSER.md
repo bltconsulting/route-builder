@@ -50,6 +50,42 @@ CSV's original `Name,Address,Phone,Turf` values in row order. Per-turf people
 counts are 22, 17, 17, 24, 22, 20, 19, 10, and 1. Six source phone fields are
 blank. The three new metadata columns remain blank for this format.
 
+## Verified YSRequests four-part layout (October 8, 2026)
+
+`YSRequests1005_1008.pdf` has three pages: two script/cover pages and one
+contact page. Embedded text is available, so OCR is unnecessary. The gray
+headers have four middle-dot-separated parts: complete precinct label, house
+number, street, and town. The contact row below each header prints a full
+address, name, and detail line. This adapter checks that the row's house number
+and street match the gray header; it does not assemble or rewrite addresses.
+Turf is not printed as contact metadata and remains blank.
+
+The actual PDF prints `People: 13` and `Doors: 13`. The adapter extracted 13
+people and 13 headers, with no missing phones, shared addresses, assembled
+addresses, or unresolved row-pairing ambiguities. Twelve records have the
+complete `Genesee - Burton City - 003` precinct label and one has
+`Genesee - Grand Blanc City - 001`. All 13 rows and header transitions were
+reviewed against the rendered contact page.
+
+## Verified county/precinct/street/parity layout (October 13, 2026)
+
+`yard signs 10.5-10.13.pdf` has five pages: two cover/script pages and three
+contact pages. Embedded text was available; OCR was unnecessary. Gray headers
+have four middle-dot-separated fields: county, complete precinct label, street,
+and `Odd` or `Even`. The county must agree with the precinct label and the
+contact's house number must have the stated parity. `Town` is derived from the
+jurisdiction printed inside the precinct label, retaining its `City` or
+`Township` suffix; it is not an independently printed field. All addresses are
+printed in full and match the header street, so none are assembled. Turf is
+not printed and remains blank.
+
+The PDF prints `People: 40` and `Doors: 40`. The adapter extracted 40 people
+from 33 group headers, with page counts of 20, 18, and 2. The street header
+on page 4 carries to the first contact on page 5. No phone fields are blank,
+no addresses are shared, and no address assembly was needed. The contacts and
+header transitions were checked against the rendered pages. No unresolved
+field ambiguity remains.
+
 ## Extension rule
 
 Inspect embedded text, rendered representative pages, page breaks, repeated

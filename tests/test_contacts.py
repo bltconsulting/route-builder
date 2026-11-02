@@ -41,6 +41,94 @@ def synthetic_ys930() -> ExtractedPDF:
     ))
 
 
+def synthetic_ysrequests() -> ExtractedPDF:
+    return ExtractedPDF(
+        (
+            (line(1, 18, 20, "People: 2"), line(1, 18, 30, "Doors: 2")),
+            (line(2, 18, 20, "Canvass script"),),
+            (
+                line(3, 23, 20, "Example - City - 003 · 2051 · Amy St · Sampletown"),
+                *contact(3, 40, "2051 Amy St", "Rivera, Alex", "(810) 555-0101 40 F"),
+                line(3, 23, 70, "Example - City - 004 · 2062 · Morrish St · Sampletown"),
+                *contact(3, 90, "2062 Morrish St", "Taylor, Jo", "55 M"),
+            ),
+        ),
+        ("People: 2\nDoors: 2", "Canvass script", ""),
+    )
+
+
+def synthetic_ysparity() -> ExtractedPDF:
+    return ExtractedPDF(
+        (
+            (line(1, 18, 20, "People: 3"), line(1, 18, 30, "Doors: 2")),
+            (
+                line(2, 23, 20, "Example · Example - Burton City - 004 · Oak St · Odd"),
+                *contact(2, 40, "101 Oak St Apt 2", "Rivera, Alex", "(810) 555-0101 40 F"),
+            ),
+            (
+                *contact(3, 20, "101 Oak St Apt 2", "Rivera, Sam", "41 M"),
+                line(3, 23, 50, "Example · Example - Burton City - 005 · Pine Rd · Even"),
+                *contact(3, 70, "202 Pine Rd", "Taylor, Jo", "(810) 555-0102 55 F"),
+            ),
+        ),
+        ("People: 3\nDoors: 2", "", ""),
+    )
+
+
+def test_ysparity_header_carryover_shared_address_and_town_derivation() -> None:
+    document = synthetic_ysparity()
+    assert detect_layout(document) == "ysparity"
+    parsed = parse_contacts(document, "ysparity")
+    report = validate(document, "ysparity", parsed)
+    assert [r.address for r in parsed.records] == ["101 Oak St Apt 2", "101 Oak St Apt 2", "202 Pine Rd"]
+    assert [r.precinct for r in parsed.records] == [
+        "Example - Burton City - 004", "Example - Burton City - 004", "Example - Burton City - 005",
+    ]
+    assert [r.town for r in parsed.records] == ["Burton City"] * 3
+    assert [r.phone for r in parsed.records] == ["(810) 555-0101", "", "(810) 555-0102"]
+    assert all(not r.turf for r in parsed.records)
+    assert report["printed_people"] == report["extracted_people"] == 3
+    assert report["shared_address_count"] == 1
+    assert report["page_numbers_with_carried_header"] == (3,)
+    assert report["assembled_address_count"] == 0
+
+
+def test_ysparity_rejects_wrong_side_of_street() -> None:
+    document = synthetic_ysparity()
+    pages = list(document.pages)
+    pages[2] = tuple(
+        line(item.page, item.x, item.y, "203 Pine Rd") if item.text == "202 Pine Rd" else item
+        for item in pages[2]
+    )
+    with pytest.raises(ValueError, match="conflicts with Even header"):
+        parse_contacts(ExtractedPDF(tuple(pages), document.page_text), "ysparity")
+
+
+def test_ysrequests_four_part_headers_and_blank_phone() -> None:
+    document = synthetic_ysrequests()
+    assert detect_layout(document) == "ysrequests"
+    parsed = parse_contacts(document, "ysrequests")
+    report = validate(document, "ysrequests", parsed)
+    assert [r.address for r in parsed.records] == ["2051 Amy St", "2062 Morrish St"]
+    assert [r.precinct for r in parsed.records] == ["Example - City - 003", "Example - City - 004"]
+    assert [r.town for r in parsed.records] == ["Sampletown", "Sampletown"]
+    assert [r.street for r in parsed.records] == ["Amy St", "Morrish St"]
+    assert [r.phone for r in parsed.records] == ["(810) 555-0101", ""]
+    assert [r.turf for r in parsed.records] == ["", ""]
+    assert report["printed_people"] == report["extracted_people"] == 2
+
+
+def test_ysrequests_rejects_house_number_conflict() -> None:
+    document = synthetic_ysrequests()
+    pages = list(document.pages)
+    pages[2] = tuple(
+        line(item.page, item.x, item.y, "2052 Amy St") if item.text == "2051 Amy St" else item
+        for item in pages[2]
+    )
+    with pytest.raises(ValueError, match="house-number header"):
+        parse_contacts(ExtractedPDF(tuple(pages), document.page_text), "ysrequests")
+
+
 def test_ys930_carries_header_keeps_shared_people_and_assembles_house_only() -> None:
     document = synthetic_ys930()
     assert detect_layout(document) == "ys930"
