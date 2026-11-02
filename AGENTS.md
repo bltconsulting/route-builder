@@ -48,6 +48,13 @@ Generated HTML should hand one destination at a time to the selected navigation 
 - Apple Maps: Maps URL to coordinates.
 The navigation app handles live GPS, traffic, rerouting, and turn-by-turn directions.
 
+## Organizer route overviews
+- Generate each `destination_pin_review.html` as a self-contained offline road map, using the relevant counties' Census TIGER/Line roads as the background.
+- Show numbered route pins and an ordered list of addresses to the right of the map on desktop and printable pages. Include polling-place names, precincts, and any address or pin review notes in that list.
+- When generating multiple routes, also create a combined `Master-Route-Overviews.html` with one overview per route.
+- Label stop-order connectors as illustrative; they are not the actual driving path. Preserve pin-source attribution and flag estimated or questionable coordinates for organizer review.
+- Follow the layout exemplified by `Downloads/route_test_20261016_1_route/Master-Route-Overviews.pdf`; do not revert to a blank coordinate diagram for organizer review.
+
 ## Development practices
 - Python 3.11+.
 - Keep functions small and testable.
